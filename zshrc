@@ -7,7 +7,7 @@ fi
 
 ######## zgenom ########
 
-source "${HOME}/.zgen/zgenom.zsh"
+source "$ZGENOM/zgenom.zsh"
 
 if ! zgenom saved; then
   zgenom oh-my-zsh

@@ -18,6 +18,7 @@ sync-persistant() {
 	source "$_ALIASES_FILE"
 }
 
+mkdir -p "$HOME/.zsh_utils"
 touch "$_ALIASES_FILE" "$_FUNCTIONS_FILE"
 sync-persistant
 
