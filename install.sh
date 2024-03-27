@@ -21,6 +21,12 @@ touch "$HOME/.zshrc"
 ensure-line "source '$PWD/.env'" "$HOME/.zshrc"
 ensure-line 'source "$DOTFILES_ROOT/zshrc"' "$HOME/.zshrc"
 
+if [ -f "$HOME/.config/nvim/init.vim" ]; then
+	ensure-line 'source "'"$PWD/init.vim"'"' "$HOME/.config/nvim/init.vim"
+else
+	echo '#' Skipping neovim config
+fi
+
 echo '#' Installed hooks and created .env file:
 echo
 cat .env
