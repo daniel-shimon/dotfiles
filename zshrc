@@ -16,7 +16,6 @@ if ! zgenom saved; then
     z
     git
     fzf
-    pyenv
     python
     colored-man-pages
     command-not-found
