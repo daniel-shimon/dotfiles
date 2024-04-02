@@ -63,3 +63,9 @@ bindkey "\e[1;2F" end-of-line # fn-shift-→
 for file ("$DOTFILES_ROOT"/zsh_utils/*.zsh(.N)) source "$file"
 for file ("$HOME"/.zsh_utils/*.zsh(.N)) source "$file"
 
+######## Settings ########
+
+export EDITOR=nvim
+FAST_HIGHLIGHT_STYLES[comment]='fg=240,bold'
+unsetopt extendedglob
+
