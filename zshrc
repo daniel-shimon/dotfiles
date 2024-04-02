@@ -36,6 +36,7 @@ if ! zgenom saved; then
     zpm-zsh/colorize
     MenkeTechnologies/zsh-cargo-completion
     Licheam/zsh-ask
+    jirutka/zsh-shift-select
   )
   for r in $repos
   do
