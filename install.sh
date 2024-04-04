@@ -10,6 +10,18 @@ function announce {
 	echo '#' "$@"
 }
 
+function warn {
+	echo '!' "$@"
+}
+
+function os-path {
+	if [ "$OS" = "Windows_NT" ]; then
+		cygpath -w "$1"
+	else
+		echo "$1"
+	fi
+}
+
 # Env file
 
 echo "DOTFILES_ROOT='$PWD'" > .env
@@ -19,7 +31,7 @@ if [ -f "$HOME/.zgenom/zgenom.zsh" ]; then
 elif [ -f "$HOME/.zgen/zgenom.zsh" ]; then
 	echo "ZGENOM='$HOME/.zgen'" >> .env
 else
-	echo 'No zgenom installation found!'
+	warn 'No zgenom installation found!'
 	exit 1
 fi
 
@@ -38,11 +50,13 @@ announce Installed zsh profile
 touch "$HOME/.ideavimrc"
 if [ -f "$HOME/.config/nvim/init.vim" ]; then
 	ensure-line "source $PWD/init.vim" "$HOME/.config/nvim/init.vim"
-	ensure-line "source $PWD/init.vim" "$HOME/.ideavimrc"
+elif [ -f "$HOME/AppData/Local/nvim/init.vim" ]; then
+	ensure-line "source $(os-path $PWD/init.vim)" "$HOME/AppData/Local/nvim/init.vim"
 else
-	announce Skipping neovim config
+	warn Skipping neovim config
 fi
-ensure-line "source $PWD/ideavimrc" "$HOME/.ideavimrc"
+ensure-line "source $(os-path $PWD/init.vim)" "$HOME/.ideavimrc"
+ensure-line "source $(os-path $PWD/ideavimrc)" "$HOME/.ideavimrc"
 
 announce Installed neovim and ideavim configs
 
