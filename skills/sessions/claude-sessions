@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+# View active Claude sessions (deduped by PID, prefer latest, sorted by PID)
+
+dir=~/.claude/sessions
+[ ! -d "$dir" ] || [ -z "$(ls -A "$dir" 2>/dev/null)" ] && { echo "No active sessions"; exit 0; }
+
+tmpfile=$(mktemp)
+seen_pids=""
+
+# Process newest files first
+for f in $(ls -t "$dir"/* 2>/dev/null); do
+  [ -f "$f" ] || continue
+
+  pid=$(grep '^pid=' "$f" | cut -d'"' -f2)
+
+  # Skip if already seen this PID
+  echo "$seen_pids" | grep -q "^${pid}$" && { rm "$f"; continue; }
+
+  # Check if alive
+  if ! ps -p "$pid" >/dev/null 2>&1; then
+    rm "$f"
+    continue
+  fi
+
+  seen_pids="$seen_pids
+$pid"
+
+  session_id=$(basename "$f")
+  cwd=$(grep '^cwd=' "$f" | cut -d'"' -f2)
+  status=$(grep '^status=' "$f" | cut -d'"' -f2)
+
+  [ "$status" = "working" ] && state="RUNNING" || state="WAITING"
+  dir_name=$(basename "$cwd")
+
+  # Get session info
+  project_folder=$(echo "$cwd" | tr '/' '-' | sed 's/^-//')
+  index_file="$HOME/.claude/projects/-${project_folder}/sessions-index.json"
+  jsonl="$HOME/.claude/projects/-${project_folder}/${session_id}.jsonl"
+
+  # Get custom name (from /rename) and auto-generated title
+  name=""
+  title=""
+  if [ -f "$jsonl" ]; then
+    name=$(grep '"type":"custom-title"' "$jsonl" | tail -1 | grep -o '"customTitle":"[^"]*' | sed 's/"customTitle":"//')
+  fi
+  if [ -f "$index_file" ]; then
+    title=$(jq -r --arg id "$session_id" '.entries[] | select(.sessionId == $id) | .summary // empty' "$index_file" 2>/dev/null | head -c 50)
+  fi
+
+  # Find last message from jsonl - extract FULL text for question detection
+  last_msg=""
+  full_msg=""
+  if [ -f "$jsonl" ]; then
+    asst_line=$(grep -n '"role":"assistant"' "$jsonl" | grep '"text":"' | tail -1 | cut -d: -f1)
+    user_line=$(grep -n '"role":"user"' "$jsonl" | tail -1 | cut -d: -f1)
+
+    asst_line=${asst_line:-0}
+    user_line=${user_line:-0}
+
+    if [ "$asst_line" -gt "$user_line" ]; then
+      # Get full message text using jq for proper JSON parsing (no truncation - subagent handles it)
+      full_msg=$(sed -n "${asst_line}p" "$jsonl" | jq -r '.message.content[] | select(.text) | .text' 2>/dev/null)
+      # Flatten to single line for easier parsing, preserve key markers
+      last_msg=$(echo "$full_msg" | tr '\n' ' ' | sed 's/  */ /g')
+    else
+      user_content=$(sed -n "${user_line}p" "$jsonl")
+      last_msg=$(echo "$user_content" | sed -n 's/.*"content":"\([^"]*\)".*/\1/p' | head -c 200)
+      [ -z "$last_msg" ] && last_msg=$(echo "$user_content" | grep -o '"text":"[^"]*' | head -1 | sed 's/"text":"//' | head -c 200)
+      [ -n "$last_msg" ] && last_msg="user: $last_msg"
+    fi
+  fi
+
+  # Mark current session by matching TTY, or fallback to parent PID chain
+  is_current=""
+  session_tty=$(grep '^tty=' "$f" | cut -d'"' -f2)
+  current_tty=$(tty 2>/dev/null | sed 's|/dev/||')
+  if [ "$session_tty" = "$current_tty" ]; then
+    is_current="[CURRENT]"
+  elif [ "$current_tty" = "not a tty" ]; then
+    # Fallback: check if session PID is ancestor of current process
+    check_pid=$$
+    while [ "$check_pid" != "1" ] && [ -n "$check_pid" ]; do
+      [ "$check_pid" = "$pid" ] && { is_current="[CURRENT]"; break; }
+      check_pid=$(ps -o ppid= -p "$check_pid" 2>/dev/null | tr -d ' ')
+    done
+  fi
+
+  # Escape pipes and newlines in last_msg to avoid breaking delimiter parsing
+  last_msg=$(echo "$last_msg" | tr '|' ':' | tr '\n' ' ')
+
+  # Store: pid|dir|state|name|title|last_msg|is_current
+  echo "$pid|$dir_name|$state|$name|$title|$last_msg|$is_current" >> "$tmpfile"
+done
+
+# Collect sessions, print THIS SESSION first
+current_session=""
+waiting_sessions=""
+
+while IFS='|' read -r pid dir state name title last_msg is_current; do
+  # Build display name: "Name (Title)" or just one if other is missing
+  if [ -n "$name" ] && [ -n "$title" ]; then
+    display="$name ($title)"
+  elif [ -n "$name" ]; then
+    display="$name"
+  elif [ -n "$title" ]; then
+    display="$title"
+  else
+    display="Session $pid"
+  fi
+
+  if [ -n "$is_current" ]; then
+    current_session="=== THIS SESSION ===
+Name: $display
+Dir: $dir
+"
+  else
+    waiting_sessions="${waiting_sessions}=== WAITING SESSION ===
+Name: $display
+Dir: $dir
+LastMsg: $last_msg
+
+"
+  fi
+done < <(sort -t'|' -k1 -n "$tmpfile")
+
+# Print THIS SESSION first, then WAITING sessions
+[ -n "$current_session" ] && echo "$current_session"
+[ -n "$waiting_sessions" ] && echo "$waiting_sessions"
+
+rm -f "$tmpfile"
