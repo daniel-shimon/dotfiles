@@ -14,6 +14,7 @@ if ! zgenom saved; then
 
   local plugins=(
     z
+    gh
     git
     fzf
     python
@@ -68,4 +69,8 @@ for file ("$HOME"/.zsh_utils/*.zsh(.N)) source "$file"
 export EDITOR=nvim
 FAST_HIGHLIGHT_STYLES[comment]='fg=240,bold'
 unsetopt extendedglob
+
+export HISTSIZE=200000
+export SAVEHIST=$HISTSIZE
+setopt hist_ignore_all_dups
 
