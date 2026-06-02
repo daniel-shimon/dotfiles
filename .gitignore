@@ -1,1 +1,4 @@
 .env
+# Secrets — never commit real values (template tracked as *.example)
+**/secrets.fish
+**/.claude/settings.local.json

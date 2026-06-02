@@ -1,56 +1,55 @@
-# My Dotfiles :rocket:
+# Dotfiles :rocket:
 
-These are my dotfiles!  
-Macos and windows supported (zsh on both).  
-No guarantees :warning: :firecracker:
+macOS dotfiles. Shell: **fish**. Editor: **neovim** (+ IdeaVim for JetBrains).
+Managed with [GNU stow](https://www.gnu.org/software/stow/) (symlink packages).
 
-## Installation
+## Layout
 
-```sh
-❯ ./install.sh
-# Generated env file
-# Installed zsh profile
-# Installed neovim and ideavim configs
-# Done!!!
+Each top-level dir is a stow package mirroring `$HOME`:
+
+```
+fish/    → ~/.config/fish/   config.fish, fish_plugins, functions, conf.d, tide-config
+nvim/    → ~/.config/nvim/   init.vim (vim-plug: treesitter, catppuccin, gitsigns, ...)
+ideavim/ → ~/.ideavimrc      (sources init.vim + ideavim extras)
+git/     → ~/.config/git/    config (delta pager, includeIf for work identity)
+bat/     → ~/.config/bat/
+tmux/    → ~/.tmux.conf
+claude/  → ~/.claude/        CLAUDE.md, RTK.md
+Brewfile → generic Homebrew packages
 ```
 
-### Uninstalling
-
-Simply remove these lines:
+## New machine
 
 ```sh
-# ~/.zshrc
-source '/path/to/dotfiles/.env'
-source "$DOTFILES_ROOT/zshrc"
+# 1. Homebrew + packages
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew bundle --file=Brewfile
 
-# ~/.config/nvim/init.vim OR ~/AppData/Local/nvim/init.vim
-source /path/to/dotfiles/init.vim
+# 2. Symlink configs
+stow fish nvim ideavim git bat tmux claude
 
-# ~/.ideavimrc
-source /path/to/dotfiles/init.vim
-source /path/to/dotfiles/ideavimrc
+# 3. Fish plugins (fisher reads fish_plugins)
+curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source
+fisher update
+
+# 4. tide/fzf customizations apply automatically (conf.d/tide-config.fish)
+
+# 5. neovim plugins
+nvim +PlugInstall +qall
+
+# 6. Secrets — copy template, fill real values (gitignored)
+cp ~/.config/fish/conf.d/secrets.fish.example ~/.config/fish/conf.d/secrets.fish
+$EDITOR ~/.config/fish/conf.d/secrets.fish
 ```
 
-## Whats included
+## Secrets
 
-###  Powerlevel10k prompt
+Real secrets live in `~/.config/fish/conf.d/secrets.fish` (gitignored, auto-loaded by fish).
+Template: `secrets.fish.example`. **Never commit real values.**
 
-### Zgenom with omz and other plugins (with a possible exclude list)
-* Syntax highlighting
-* Fish-style autosuggestions
-* History with `fzf`
-* Alias tips
-* Autopairing
-* ... and more!
+## Work config
 
-### Zsh utils including:
-* Persistent aliases (`persist-alias`)
-* A calc alias (`=`)
-* Utils for time-measurement
-* +++
-
-### My neovim and ideavim config including plugins and keybindings:
-* Multiple cursors
-* Surround
-* Arg text object
-* Remap like cutlass with OS clipboard integration
+Work-specific functions, env, and ssh live in a separate private repo.
+Its fish files stow into `~/.config/fish/conf.d/` and load automatically —
+this public config has no hardcoded reference to it.
+Work git identity (email) applies under `~/src/` via `includeIf`.
